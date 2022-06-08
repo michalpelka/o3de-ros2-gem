@@ -17,6 +17,7 @@
 #include <Atom/RPI.Public/AuxGeom/AuxGeomFeatureProcessorInterface.h>
 #include <Atom/RPI.Public/RPISystemInterface.h>
 #include <Atom/RPI.Public/Scene.h>
+#include <AzFramework/Physics/PhysicsSystem.h>
 
 namespace ROS2
 {
@@ -33,6 +34,8 @@ namespace ROS2
             serialize->Class<ROS2LidarSensorComponent, ROS2SensorComponent>()
                 ->Version(1)
                 ->Field("lidarModel", &ROS2LidarSensorComponent::m_lidarModel)
+                ->Field("LidarTransparentEntityId", &ROS2LidarSensorComponent::m_lidarTransparentEntityId)
+                ->Field("LidarParameters", &ROS2LidarSensorComponent::m_lidarParameters)
                 ;
 
             if (AZ::EditContext* ec = serialize->GetEditContext())
@@ -41,11 +44,28 @@ namespace ROS2
                     ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
                         ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC("Game"))
                     ->DataElement(AZ::Edit::UIHandlers::ComboBox, &ROS2LidarSensorComponent::m_lidarModel, "Lidar Model", "Lidar model")
+                        ->Attribute(AZ::Edit::Attributes::ChangeNotify, &ROS2LidarSensorComponent::OnLidarModelSelected)
                         ->EnumAttribute(LidarTemplate::LidarModel::Generic3DLidar, "Generic Lidar")
                         // TODO - show lidar template field values (read only) - see Reflect for LidarTemplate
+                    ->DataElement(AZ::Edit::UIHandlers::EntityId, &ROS2LidarSensorComponent::m_lidarTransparentEntityId,
+                          "Lidar-transparent Entity", "Entity to be transparent for the lidar. If not set, use this component's entity")
+                    ->DataElement(AZ::Edit::UIHandlers::EntityId, &ROS2LidarSensorComponent::m_lidarParameters,
+                          "Lidar parameters", "Configuration of Generic lidar")
+                        ->Attribute(AZ::Edit::Attributes::Visibility, &ROS2LidarSensorComponent::IsConfigurationVisible)
                     ;
             }
         }
+    }
+
+    bool ROS2LidarSensorComponent::IsConfigurationVisible() const
+    {
+        return m_lidarModel == LidarTemplate::Generic3DLidar;
+    }
+
+    AZ::Crc32 ROS2LidarSensorComponent::OnLidarModelSelected()
+    {
+        m_lidarParameters = LidarTemplateUtils::GetTemplate(m_lidarModel);
+        return AZ::Edit::PropertyRefreshLevels::EntireTree;
     }
 
     ROS2LidarSensorComponent::ROS2LidarSensorComponent()
@@ -79,9 +99,23 @@ namespace ROS2
         }
     }
 
+    void ROS2LidarSensorComponent::SetPhysicsScene()
+    {
+        auto* physicsSystem = AZ::Interface<AzPhysics::SystemInterface>::Get();
+        auto foundBody = physicsSystem->FindAttachedBodyHandleFromEntityId(GetEntityId());
+        auto lidarPhysicsSceneHandle = foundBody.first;
+        if (foundBody.first == AzPhysics::InvalidSceneHandle)
+        {
+            auto* sceneInterface = AZ::Interface<AzPhysics::SceneInterface>::Get();
+            lidarPhysicsSceneHandle = sceneInterface->GetSceneHandle(AzPhysics::DefaultPhysicsSceneName);
+        }
+
+        AZ_Assert(lidarPhysicsSceneHandle != AzPhysics::InvalidSceneHandle, "Invalid physics scene handle for entity");
+        m_lidarRaycaster.SetRaycasterScene(lidarPhysicsSceneHandle);
+    }
+
     void ROS2LidarSensorComponent::Activate()
     {
-        ROS2SensorComponent::Activate();
         auto ros2Node = ROS2Interface::Get()->GetNode();
         AZ_Assert(m_sensorConfiguration.m_publishersConfigurations.size() == 1, "Invalid configuration of publishers for lidar sensor");
 
@@ -89,11 +123,22 @@ namespace ROS2
         AZStd::string fullTopic = ROS2Names::GetNamespacedName(GetNamespace(), publisherConfig.m_topic);
         m_pointCloudPublisher = ros2Node->create_publisher<sensor_msgs::msg::PointCloud2>(fullTopic.data(), publisherConfig.GetQoS());
 
+        SetPhysicsScene();
         if (m_sensorConfiguration.m_visualise)
         {
-            auto defaultScene = AZ::RPI::Scene::GetSceneForEntityId(GetEntityId());
-            m_drawQueue = AZ::RPI::AuxGeomFeatureProcessorInterface::GetDrawQueueForScene(defaultScene);
+            auto* entityScene = AZ::RPI::Scene::GetSceneForEntityId(GetEntityId());
+            m_drawQueue = AZ::RPI::AuxGeomFeatureProcessorInterface::GetDrawQueueForScene(entityScene);
         }
+
+        if (m_lidarTransparentEntityId.IsValid())
+        {
+            m_lidarRaycaster.setLidarTransparentEntity(m_lidarTransparentEntityId);
+        } 
+        else 
+        {
+            m_lidarRaycaster.setLidarTransparentEntity(GetEntityId());
+        }
+        ROS2SensorComponent::Activate();
     }
 
     void ROS2LidarSensorComponent::Deactivate()
@@ -106,9 +151,11 @@ namespace ROS2
     {
         float distance = LidarTemplateUtils::GetTemplate(m_lidarModel).m_maxRange;
         auto entityTransform = GetEntity()->FindComponent<AzFramework::TransformComponent>(); // TODO - go through ROS2Frame
-        const auto directions = LidarTemplateUtils::PopulateRayDirections(m_lidarModel, entityTransform->GetWorldTM().GetEulerRadians());
+        const auto directions = LidarTemplateUtils::PopulateRayDirections(m_lidarParameters,
+                                                                          entityTransform->GetWorldTM().GetEulerRadians());
         AZ::Vector3 start = entityTransform->GetWorldTM().GetTranslation();
-        start.SetZ(start.GetZ() + 1.0f);
+        start.SetZ(start.GetZ());
+
         m_lastScanResults = m_lidarRaycaster.PerformRaycast(start, directions, distance);
         if (m_lastScanResults.empty())
         {
