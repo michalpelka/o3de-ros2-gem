@@ -13,6 +13,7 @@
 #include "Imu/ROS2ImuSensorComponent.h"
 #include "Lidar/ROS2LidarSensorComponent.h"
 #include "ROS2SystemComponent.h"
+#include "Manipulator/ApplePickerComponent.h"
 #include "RobotControl/Controllers/AckermannController/AckermannControlComponent.h"
 #include "RobotControl/Controllers/RigidBodyController/RigidBodyTwistControlComponent.h"
 #include "RobotControl/ROS2JoySubscriberComponent.h"
@@ -54,7 +55,8 @@ namespace ROS2
                   ROS2SpawnerComponent::CreateDescriptor(),
                   VehicleDynamics::VehicleModelComponent::CreateDescriptor(),
                   VehicleDynamics::WheelControllerComponent::CreateDescriptor(),
-                  ROS2JoySubscriberComponent::CreateDescriptor() });
+                  ROS2JoySubscriberComponent::CreateDescriptor(),
+                  ApplePickerComponent::CreateDescriptor()});
         }
 
         //! Add required SystemComponents to the SystemEntity.

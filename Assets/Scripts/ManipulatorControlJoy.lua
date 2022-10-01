@@ -1,5 +1,4 @@
 
-
 --[[
     This is a proof-of-concept implementation of vehicle control physics. 
     It allows controlling the speed and steering angle of the vehicle 
@@ -104,20 +103,20 @@ function manipulator_control:OnActivate()
      self.pid1 = PID.new(10.0, 1.0, 0.0, 0.0) 
      self.pid2 = PID.new(8.0, 1.0, 0.0, 0.0) 
      self.pid3 = PID.new(0.0, 0.0, 0.0, 0.0)
-     self.pid4 = PID.new(20.0, 0.0, 0.0, 0.0)
+     self.pid4 = PID.new(10.0, 0.0, 0.0, 0.0)
 
      --self.segment1_limits = {-0.9, 0.9}
      --self.segment2_limits = {-0.7, 0.7}
      self.segment1_limits = {-0.6, 0.6}
      self.segment2_limits = {-0.35, 0.35}
      self.segment3_limits = {-0.10, 0.10}
-     self.segment4_limits = {-0.10, 0.10}
+     self.segment4_limits = {-0.10, 0.40}
 
      self.zeroPose = {nil, nil, nil, nil}
 
      -- To prevent violent reactions right after the simulation starts,
      -- we're waiting this ammount of seconds till running the controller
-     self.startup_wait = 4.0 --[s]
+     self.startup_wait = 2.0 --[s]
 
      self.twistNotificationBus = JoyNotificationBus.Connect(self);
 
@@ -130,10 +129,24 @@ end
 
 function manipulator_control:JoyReceived(a0, a1, a2, a3, a4, a5, b0, b1, b2, b3, b4, b5, b6, b7 )
     Debug.Log("["..string.format("%1.4f",a0).."]")
-    self.target_position[1] = self.target_position[1] - 0.1 * a3 * self.segment1_limits[1]
-    self.target_position[2] = self.target_position[2] - 0.1 * a2 * self.segment1_limits[1]
-    self.target_position[4] = self.target_position[2] - 0.1 * a5 * self.segment1_limits[1]
+    self.target_position[1] = self.target_position[1] - 0.05 * a3 
+    self.target_position[2] = self.target_position[2] + 0.05 * a2
+    
 
+    
+    -- if self.target_position[2]  > self.segment2_limits[1] then
+    --     self.target_position[2]  = self.segment2_limits[1]
+    -- end    
+    -- if self.target_position[2]  < -self.segment2_limits[1] then
+    --     self.target_position[2]  = -self.segment2_limits[1]
+    -- end    
+      
+    
+    if a5==1 then
+        self.target_position[4] = self.segment4_limits[2]
+    else
+        self.target_position[4] = self.segment4_limits[1]
+    end
 end
 
 
