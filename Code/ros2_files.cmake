@@ -105,4 +105,6 @@ set(FILES
         Source/Spawner/ROS2SpawnerComponent.h
         Source/Spawner/ROS2SpawnerComponent.cpp
         Source/Spawner/SpawnerBus.h
+        Source/Manipulator/ApplePickerComponent.cpp
+        Source/Manipulator/ApplePickerComponent.h
         )

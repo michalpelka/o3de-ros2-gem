@@ -125,7 +125,7 @@ namespace ROS2
                 message.height = descriptor.m_size.m_height;
                 message.data = std::vector<uint8_t>(result.m_dataBuffer->data(), result.m_dataBuffer->data() + result.m_dataBuffer->size());
                 message.header.frame_id = frameName.c_str();
-
+                message.step = descriptor.m_size.m_width * 4;
                 m_imagePublisher->publish(message);
 
                 sensor_msgs::msg::CameraInfo cameraInfo;
