@@ -41,6 +41,7 @@ namespace ROS2
 
         QLabel m_statusLabel;
         QPushButton m_selectFileButton;
+        QPushButton m_test;
         QTimer m_importerUpdateTimer;
 
         RobotImporter m_robotImporter;

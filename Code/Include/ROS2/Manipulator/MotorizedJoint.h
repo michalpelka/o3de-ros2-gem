@@ -8,6 +8,7 @@
 #pragma once
 
 #include "ROS2/VehicleDynamics/DriveModels/PidConfiguration.h"
+#include "ImGuiBus.h"
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/Math/Transform.h>
@@ -27,6 +28,7 @@ namespace ROS2
     class MotorizedJoint
         : public AZ::Component
         , public AZ::TickBus::Handler
+        , public ImGui::ImGuiUpdateListenerBus::Handler
     {
     public:
         AZ_COMPONENT(MotorizedJoint, "{AE9207DB-5B7E-4F70-A7DD-C4EAD8DD9403}", AZ::Component);
@@ -58,6 +60,8 @@ namespace ROS2
         };
 
     private:
+        void OnImGuiUpdate() override;
+
         float ComputeMeasurement(AZ::ScriptTimePoint time);
 
         void SetVelocity(float velocity, float deltaTime);

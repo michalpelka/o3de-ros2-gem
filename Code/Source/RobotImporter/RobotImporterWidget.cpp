@@ -21,6 +21,7 @@ namespace ROS2
         : QWidget(parent)
         , m_statusLabel("", this)
         , m_selectFileButton(QObject::tr("Load"), this)
+        , m_test(QObject::tr("Test"), this)
         , m_importerUpdateTimer(this)
         , m_robotImporter(
               [this](RobotImporter::LogLevel level, const AZStd::string& message)
@@ -43,6 +44,7 @@ namespace ROS2
         captionLabel->setWordWrap(true);
         mainLayout->addWidget(captionLabel);
         mainLayout->addWidget(&m_selectFileButton);
+        mainLayout->addWidget(&m_test);
         mainLayout->addWidget(&m_statusLabel);
         mainLayout->addStretch();
 
@@ -88,6 +90,16 @@ namespace ROS2
                 // Check whether import is still in progress every 0.5 seconds
                 m_importerUpdateTimer.start(500);
             });
+
+        QObject::connect(
+        &m_selectFileButton,
+        &QPushButton::clicked,
+        this,
+        []()
+        {
+
+        });
+
         setLayout(mainLayout);
     }
 

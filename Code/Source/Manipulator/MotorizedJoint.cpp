@@ -12,6 +12,7 @@
 #include <AzCore/Component/TransformBus.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzFramework/Physics/RigidBodyBus.h>
+#include "imgui/imgui.h"
 
 namespace ROS2
 {
@@ -23,11 +24,13 @@ namespace ROS2
         {
             AZ::TransformBus::EventResult(m_debugDrawEntityInitialTransform, this->GetEntityId(), &AZ::TransformBus::Events::GetLocalTM);
         }
+        ImGui::ImGuiUpdateListenerBus::Handler::BusConnect();
     }
 
     void MotorizedJoint::Deactivate()
     {
         AZ::TickBus::Handler::BusDisconnect();
+        ImGui::ImGuiUpdateListenerBus::Handler::BusDisconnect();
     }
 
     void MotorizedJoint::Reflect(AZ::ReflectContext* context)
@@ -246,6 +249,15 @@ namespace ROS2
     float MotorizedJoint::GetCurrentPosition() const
     {
         return m_currentPosition;
+    }
+    void MotorizedJoint::OnImGuiUpdate() {
+
+        AZStd::string s = AZStd::string::format("MotorizedJoint%s",GetEntity()->GetName().c_str());
+        ImGui::Begin(s.c_str());
+        ImGui::Text("setpoint");
+        ImGui::SliderFloat("setpoint", &m_setpoint,-1,1);
+        ImGui::SliderFloat("measurment", &m_currentPosition,-1,1);
+        ImGui::End();
     }
 
 } // namespace ROS2
