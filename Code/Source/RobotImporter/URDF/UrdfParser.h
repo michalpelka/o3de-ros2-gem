@@ -26,5 +26,16 @@ namespace ROS2
         //! @param filePath is a path to file with URDF data that will be loaded and parsed.
         //! @return model represented as a tree of parsed links.
         static urdf::ModelInterfaceSharedPtr ParseFromFile(const AZStd::string& filePath);
+
+        //! provide simplified name (base_name + orginal path's hash - that is a name on which asset will be imported
+        static AZStd::string squashName(const AZStd::string& urdfPath);
+
+        //! finds global filename for urdf
+        static AZStd::string resolveURDFPath(AZStd::string urdfPath);
+
+
+        ///! allows to import meshes to assets
+        static void importMeshesFromURDF(urdf::ModelInterfaceSharedPtr  urdf);
+
     };
 } // namespace ROS2

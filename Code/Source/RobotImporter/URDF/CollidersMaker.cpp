@@ -29,15 +29,6 @@ namespace ROS2
     {
         static const char* collidersMakerLoggingTag = "CollidersMaker";
 
-        AZ::IO::Path GetFullURDFMeshPath(AZ::IO::Path modelPath, AZ::IO::Path meshPath)
-        {
-            modelPath.RemoveFilename();
-            AZ::StringFunc::Replace(meshPath.Native(), "package://", "", true, true);
-            modelPath /= meshPath;
-
-            return modelPath;
-        }
-
         AZStd::optional<AZ::IO::Path> GetMeshProductPathFromSourcePath(const AZ::IO::Path& sourcePath)
         {
             AZ_TracePrintf(Internal::collidersMakerLoggingTag, "GetMeshProductPathFromSourcePath: %s", sourcePath.c_str());
@@ -172,7 +163,7 @@ namespace ROS2
         if (!isPrimitiveShape)
         {
             auto meshGeometry = std::dynamic_pointer_cast<urdf::Mesh>(geometry);
-            auto azMeshPath = Internal::GetFullURDFMeshPath(AZ::IO::Path(m_modelPath), AZ::IO::Path(meshGeometry->filename.c_str()));
+            auto azMeshPath =AZ::IO::Path(UrdfParser::squashName(meshGeometry->filename.c_str()));
 
             AZStd::shared_ptr<AZ::SceneAPI::Containers::Scene> scene;
             AZ::SceneAPI::Events::SceneSerializationBus::BroadcastResult(
@@ -369,7 +360,7 @@ namespace ROS2
             AZ_Printf(Internal::collidersMakerLoggingTag, "Adding mesh collider to %s\n", entityId.ToString().c_str());
             auto meshGeometry = std::dynamic_pointer_cast<urdf::Mesh>(geometry);
             AZ_Assert(meshGeometry, "geometry is not meshGeometry");
-            auto azMeshPath = Internal::GetFullURDFMeshPath(AZ::IO::Path(m_modelPath), AZ::IO::Path(meshGeometry->filename.c_str()));
+            auto azMeshPath = UrdfParser::squashName(meshGeometry->filename.c_str());
             AZStd::optional<AZ::IO::Path> pxmodelPath = Internal::GetMeshProductPathFromSourcePath(azMeshPath);
             if (!pxmodelPath)
             {

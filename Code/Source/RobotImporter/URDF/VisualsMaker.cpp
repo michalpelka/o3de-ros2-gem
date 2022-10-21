@@ -133,13 +133,14 @@ namespace ROS2
                 auto meshGeometry = std::dynamic_pointer_cast<urdf::Mesh>(geometry);
                 AZ_Assert(meshGeometry, "geometry is not Mesh");
                 // TODO - a PoC solution for path, replace with something generic, robust, proper
-                AZ::IO::Path modelPath(m_modelPath);
-                modelPath.RemoveFilename();
-                AZ::IO::Path relativePathToMesh(AZStd::string_view(meshGeometry->filename.c_str(), meshGeometry->filename.size()));
-                AZ::StringFunc::Replace(relativePathToMesh.Native(), "package://", "", true, true);
-                modelPath /= relativePathToMesh;
+//                AZ::IO::Path modelPath(m_modelPath);
+//                modelPath.RemoveFilename();
+//                AZ::IO::Path relativePathToMesh(AZStd::string_view(meshGeometry->filename.c_str(), meshGeometry->filename.size()));
+//                AZ::StringFunc::Replace(relativePathToMesh.Native(), "package://", "", true, true);
+//                modelPath /= relativePathToMesh;
+                  auto modelPath =AZ::IO::Path(UrdfParser::squashName(meshGeometry->filename.c_str()));
 
-                // Get asset path for a given model path
+            // Get asset path for a given model path
                 auto assetPath = PrefabMakerUtils::GetAzModelAssetPathFromModelPath(modelPath);
 
                 entity->CreateComponent(AZ::Render::EditorMeshComponentTypeId);
