@@ -20,7 +20,8 @@ namespace ROS2
     RobotImporterWidget::RobotImporterWidget(QWidget* parent)
         : QWidget(parent)
         , m_statusLabel("", this)
-        , m_selectFileButton(QObject::tr("Load"), this)
+        , m_selectFileButton(QObject::tr("Load URDF"), this)
+        , m_importMeshButton(QObject::tr("Process meshes URDF "), this)
         , m_importerUpdateTimer(this)
         , m_robotImporter(
               [this](RobotImporter::LogLevel level, const AZStd::string& message)
@@ -44,6 +45,7 @@ namespace ROS2
         mainLayout->addWidget(captionLabel);
         mainLayout->addWidget(&m_selectFileButton);
         mainLayout->addWidget(&m_statusLabel);
+        mainLayout->addWidget(&m_importMeshButton);
         mainLayout->addStretch();
 
         connect(
@@ -88,6 +90,22 @@ namespace ROS2
                 // Check whether import is still in progress every 0.5 seconds
                 m_importerUpdateTimer.start(500);
             });
+
+        QObject::connect(
+                &m_importMeshButton,
+                &QPushButton::clicked,
+                this,
+                [this]()
+                {
+                    AZStd::optional<AZStd::string> urdfPath = RobotImporterWidgetUtils::QueryUserForURDFPath(this);
+                    if (!urdfPath)
+                    {
+                        return;
+                    }
+                    auto urdfModel = UrdfParser::ParseFromFile(*urdfPath);
+                    UrdfParser::importMeshesFromURDF(urdfModel);
+
+                });
         setLayout(mainLayout);
     }
 

@@ -12,8 +12,12 @@
 
 #include <AzCore/Debug/Trace.h>
 #include <AzCore/std/string/string.h>
+#include <AzCore/StringFunc/StringFunc.h>
 
 #include <urdf_model/model.h>
+#include <AssetDatabase/AssetDatabaseConnection.h>
+
+#include <filesystem>
 
 namespace ROS2
 {
@@ -55,4 +59,69 @@ namespace ROS2
         std::string xmlStr((std::istreambuf_iterator<char>(istream)), std::istreambuf_iterator<char>());
         return Parse(xmlStr.c_str());
     }
+
+    void UrdfParser::importMeshesFromURDF(urdf::ModelInterfaceSharedPtr  urdf){
+
+        AZStd::unordered_set<AZStd::string> meshes;
+        std::function<void(urdf::LinkSharedPtr)> scanLink = [&](urdf::LinkSharedPtr link)->void{
+            for (auto childLink : link->child_links)
+            {
+
+                for (auto v : childLink->visual_array)
+                {
+                    if (v->geometry == nullptr || v->geometry->type!= urdf::Geometry::MESH)
+                    {
+                        continue;
+                    }
+                    auto meshGeometry = std::dynamic_pointer_cast<urdf::Mesh>(v->geometry);
+                    meshes.insert(AZStd::string(meshGeometry->filename.c_str(),meshGeometry->filename.size()));
+                    AZ_Printf("URDF :", "%s %s", childLink->name.c_str(), meshGeometry->filename.c_str());
+                }
+
+                scanLink(childLink);
+            }
+        };
+        std::vector<urdf::LinkSharedPtr > links;
+        urdf->getLinks(links);
+        for (auto childLink : links){
+            scanLink(childLink);
+        }
+
+        AZStd::vector<AZStd::string> assetSafeFolders;
+        bool success{false};
+        AzToolsFramework::AssetSystemRequestBus::BroadcastResult(success, &AzToolsFramework::AssetSystemRequestBus::Events::GetAssetSafeFolders, assetSafeFolders);
+        if (success && assetSafeFolders.size() > 0)
+        {
+            for (const auto& m : meshes){
+                auto resolved_urdf = resolveURDFPath(m);
+                auto squashed_name = squashName(m);
+                auto target = (assetSafeFolders.front()+"/"+squashed_name);
+                AZ_Printf("UrdfParser", "Copying meshes (%s) %s -> %s\n", m.c_str(), resolved_urdf.c_str(), (assetSafeFolders.front()+"/"+squashed_name).c_str());
+                std::filesystem::copy_file(resolved_urdf.c_str(), target.c_str(),  std::filesystem::copy_options::update_existing);
+                AzToolsFramework::AssetSystemRequestBus::BroadcastResult(success, &AzToolsFramework::AssetSystemRequestBus::Events::GetAssetSafeFolders, assetSafeFolders);
+            }
+        }
+    }
+
+    AZStd::string UrdfParser::resolveURDFPath(AZStd::string urdfPath){
+        // global path
+        if (urdfPath.starts_with("file:///"))
+        {
+            AZ::StringFunc::Replace(urdfPath, "file://", "", true, true);
+            return urdfPath;
+        }
+        //TODO package:// and relative
+
+        return "";
+    }
+
+    AZStd::string UrdfParser::squashName(const AZStd::string& urdfPath)
+    {
+        auto last_dot = AZ::StringFunc::Find(urdfPath,'/',0,true);
+        auto base_name  = urdfPath.substr(last_dot+1);
+        auto hash = AZ::Crc32(urdfPath.substr(0,last_dot));
+        return AZStd::string::format("%09u_%s", uint32_t(hash),base_name.c_str());
+
+    }
+
 } // namespace ROS2
