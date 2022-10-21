@@ -32,6 +32,7 @@ ly_add_target(
             AZ::AzFramework
             AZ::AzToolsFramework
             Gem::Atom_RPI.Public
+            Gem::ImGui.Editor
             Gem::Atom_Feature_Common.Static
             Gem::Atom_Component_DebugCamera.Static
             Gem::StartingPointInput
