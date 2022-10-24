@@ -43,7 +43,7 @@ namespace ROS2
         VisualsMaker m_visualsMaker;
         CollidersMaker m_collidersMaker;
         InertialsMaker m_inertialsMaker;
-        JointsMaker m_jointsMaker;
+        [[maybe_unused]] JointsMaker m_jointsMaker;
 
         BuildReadyCallback m_notifyBuildReadyCb;
     };

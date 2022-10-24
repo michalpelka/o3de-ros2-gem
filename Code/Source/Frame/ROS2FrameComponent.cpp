@@ -99,6 +99,7 @@ namespace ROS2
                 AZ::TickBus::Handler::BusDisconnect();
             }
             m_ros2Transform.reset();
+
         }
     }
 

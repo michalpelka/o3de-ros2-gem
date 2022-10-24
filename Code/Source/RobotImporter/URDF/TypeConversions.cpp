@@ -24,4 +24,11 @@ namespace ROS2::URDF
     {
         return AZ::Color(color.r, color.g, color.b, color.a);
     }
+
+    AZ::Transform TypeConversions::ConvertPose(const urdf::Pose& pose){
+        AZ::Quaternion azRotation = URDF::TypeConversions::ConvertQuaternion(pose.rotation);
+        AZ::Vector3 azPosition = URDF::TypeConversions::ConvertVector3( pose.position);
+        return AZ::Transform(azPosition, azRotation, 1.0f);
+    }
+
 } // namespace ROS2::URDF
