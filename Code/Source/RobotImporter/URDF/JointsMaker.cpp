@@ -24,7 +24,7 @@ namespace ROS2
         {
             if (joint->child_link_name == childLink->name)
             { // Found a match!
-                PrefabMakerUtils::SetEntityTransform(joint->parent_to_joint_origin_transform, linkChildId);
+                //PrefabMakerUtils::SetEntityTransform(joint->parent_to_joint_origin_transform, linkChildId);
                 return AddJointComponent(joint, linkChildId, linkParentId);
             }
         }

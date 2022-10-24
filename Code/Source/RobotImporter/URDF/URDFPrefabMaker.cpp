@@ -58,12 +58,95 @@ namespace ROS2
     AzToolsFramework::Prefab::CreatePrefabResult URDFPrefabMaker::CreatePrefabFromURDF()
     { // TODO - this is PoC code, restructure when developing semantics of URDF->Prefab/Entities/Components mapping
 
-        // recursively add all entities
+        AZStd::unordered_map<AZStd::string, AzToolsFramework::Prefab::PrefabEntityResult> created_links;
         auto createEntityResult = AddEntitiesForLink(m_model->root_link_, AZ::EntityId());
+        created_links[AZStd::string(m_model->root_link_->name.c_str())] = createEntityResult;
         if (!createEntityResult.IsSuccess())
         {
             return AZ::Failure(AZStd::string(createEntityResult.GetError()));
         }
+
+        auto links = Utils::getAllLinks(m_model->root_link_->child_links);
+
+        // create links - STEP1
+        for ( const auto &[name , link_ptr] :  links){
+            created_links[name] = AddEntitiesForLink(link_ptr, createEntityResult.GetValue());
+        }
+
+        // step1 report
+        for ( const auto &[name , result] :  created_links){
+            AZ_TracePrintf("CreatePrefabFromURDF", "Link with name %s was created as: %s\n", name.c_str(),
+                           result.IsSuccess()?(result.GetValue().ToString().c_str()):("[Failed]"));
+        }
+
+        // set (optional) parentity - STEP2
+//        for ( const auto &[name , link_ptr] :  links){
+//            const auto this_entry = created_links.at(name);
+//            if (!this_entry.IsSuccess()){
+//                AZ_TracePrintf("CreatePrefabFromURDF", "Link %s was failed to create", name.c_str());
+//                continue;
+//            }
+//            auto parent_ptr = link_ptr->getParent();
+//            if (!parent_ptr){
+//                AZ_TracePrintf("CreatePrefabFromURDF", "Link %s has no parents", name.c_str());
+//                continue;
+//            }
+//            AZStd::string parent_name(parent_ptr->name.c_str(), parent_ptr->name.size());
+//            const auto parent_entry = created_links.find(parent_name);
+//            if (parent_entry == created_links.end()){
+//                AZ_TracePrintf("CreatePrefabFromURDF", "Link %s has invalid parent name %s", name.c_str(), parent_name.c_str());
+//                continue;
+//            }
+//            if (!parent_entry->second.IsSuccess())
+//            {
+//                AZ_TracePrintf("CreatePrefabFromURDF", "Link %s has parent %s which was failed to create" , name.c_str(), parent_name.c_str());
+//                continue;
+//            }
+//            AZ::TransformBus::Event(this_entry.GetValue(), &AZ::TransformBus::Events::SetParent, parent_entry->second.GetValue());
+//        }
+
+        // set transforms - STEP3
+        for ( const auto &[name , link_ptr] :  links){
+            const auto this_entry = created_links.at(name);
+            if (this_entry.IsSuccess()) {
+                AZ::Transform tf = Utils::getWorldTransformURDF(link_ptr);
+                auto* entity = AzToolsFramework::GetEntityById(this_entry.GetValue());
+                if (entity)
+                {
+                    auto* transformInterface = entity->FindComponent<AzToolsFramework::Components::TransformComponent>();
+                    if (transformInterface){
+                        AZ_TracePrintf("CreatePrefabFromURDF", "Setting tf : %s [%f %f %f] [%f %f %f %f]" , this_entry.GetValue().ToString().c_str(), tf.GetTranslation().GetX(),
+                                       tf.GetTranslation().GetY(), tf.GetTranslation().GetZ(),
+                                       tf.GetRotation().GetX(),tf.GetRotation().GetY(),tf.GetRotation().GetZ(),tf.GetRotation().GetW());
+
+                        transformInterface->SetWorldTM(tf);
+                    }else{
+                        AZ_TracePrintf("CreatePrefabFromURDF", "Setting tf : %s does not have transform interface",name.c_str());
+
+                    }
+                }
+                // what is strange followting code does not works, TODO invetigate
+                // AZ::TransformBus::Event(this_entry.GetValue(), &AZ::TransformBus::Events::SetWorldTF, tf);
+
+            }
+        }
+
+        // create joint - STEP4
+        auto joints = Utils::getAllJoints(m_model->root_link_->child_links);
+        for (const auto&[name,joint_ptr] : joints){
+            AZ_Assert(joint_ptr, "joint %s is null", name.c_str());
+            AZ_TracePrintf("CreatePrefabFromURDF", "Creating joint %s : %s -> %s",name.c_str(),
+                           joint_ptr->parent_link_name.c_str(),joint_ptr->child_link_name.c_str());
+            auto lead_entity = created_links.at(joint_ptr->parent_link_name.c_str());
+            auto child_entity = created_links.at(joint_ptr->child_link_name.c_str());
+            if (lead_entity.IsSuccess() && child_entity.IsSuccess()){
+                m_jointsMaker.AddJointComponent(joint_ptr, child_entity.GetValue(),lead_entity.GetValue());
+            }else{
+                AZ_Warning("CreatePrefabFromURDF", false, "cannot create joint %s",name.c_str());
+            }
+
+        }
+
 
         auto contentEntityId = createEntityResult.GetValue();
         AddRobotControl(contentEntityId);
@@ -126,20 +209,20 @@ namespace ROS2
         m_collidersMaker.AddColliders(link, entityId);
         m_inertialsMaker.AddInertial(link->inertial, entityId);
 
-        for (auto childLink : link->child_links)
-        {
-            auto outcome = AddEntitiesForLink(childLink, entityId); // recursive call
-            if (!outcome.IsSuccess())
-            { // TODO - decide on behavior. Still proceed to load other children?
-                AZ_Warning("AddEntitiesForLink", false, "Unable to add entity due to an error: %s", outcome.GetError().c_str());
-                continue;
-            }
+//        for (auto childLink : link->child_links)
+//        {
+//            auto outcome = AddEntitiesForLink(childLink, entityId); // recursive call
+//            if (!outcome.IsSuccess())
+//            { // TODO - decide on behavior. Still proceed to load other children?
+//                AZ_Warning("AddEntitiesForLink", false, "Unable to add entity due to an error: %s", outcome.GetError().c_str());
+//                continue;
+//            }
+//
+//            AZ::EntityId childEntityId = outcome.GetValue();
+//            m_jointsMaker.AddJoint(link, childLink, childEntityId, entityId);
+//        }
 
-            AZ::EntityId childEntityId = outcome.GetValue();
-            m_jointsMaker.AddJoint(link, childLink, childEntityId, entityId);
-        }
-
-        MoveEntityToDefaultSpawnPoint(entityId);
+//        MoveEntityToDefaultSpawnPoint(entityId);
 
         return AZ::Success(entityId);
     }
