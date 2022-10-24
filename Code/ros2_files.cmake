@@ -60,8 +60,6 @@ set(FILES
         Source/Imu/ROS2ImuSensorComponent.h
         Source/RobotImporter/ROS2RobotImporterSystemComponent.cpp
         Source/RobotImporter/ROS2RobotImporterSystemComponent.h
-        Source/RobotImporter/Utils/RobotImporterUtils.h
-        Source/RobotImporter/Utils/RobotImporterUtils.cpp
         Source/RobotImporter/URDF/UrdfParser.cpp
         Source/RobotImporter/URDF/UrdfParser.h
         Source/Converters/URDF/ToFBX/FbxGenerator.cpp
