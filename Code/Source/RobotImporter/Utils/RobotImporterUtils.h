@@ -24,7 +24,7 @@ namespace ROS2
         /// Retrieve all links in urdf file
         AZStd::unordered_map<AZStd::string, urdf::LinkSharedPtr> getAllLinks(const std::vector<urdf::LinkSharedPtr>& links);
 
-        /// Retrieve all links in urdf file
+        /// Retrieve all joints in urdf file
         AZStd::unordered_map<AZStd::string, urdf::JointSharedPtr> getAllJoints(const std::vector<urdf::LinkSharedPtr>& links);
 
     } // namespace Utils
