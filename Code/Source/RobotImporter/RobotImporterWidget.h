@@ -9,29 +9,40 @@
 #pragma once
 
 #if !defined(Q_MOC_RUN)
-#include "RobotImporter/URDF/RobotImporter.h"
-#include <AzToolsFramework/API/ToolsApplicationAPI.h>
+#include "URDF/URDFPrefabMaker.h"
+#include "URDF/UrdfParser.h"
+#include <AzCore/Asset/AssetCommon.h>
+#include <AzCore/std/containers/unordered_map.h>
+
 #include <QCheckBox>
 #include <QFileDialog>
+#include <QFileSystemModel>
+#include <QHeaderView>
 #include <QLabel>
-#include <QPushButton>
-#include <QTextEdit>
 #include <QLineEdit>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QTableWidget>
+#include <QTextEdit>
 #include <QTimer>
+#include <QVBoxLayout>
 #include <QWidget>
 #include <QWizard>
-#include <QTableWidget>
+#include <QWizardPage>
 #endif
 
 namespace ROS2
 {
-
-    class FileSelectionPage : public QWizardPage{
+    class RobotImporterWidget;
+    class URDFPrefabMaker;
+    class FileSelectionPage : public QWizardPage
+    {
         Q_OBJECT
     public:
         explicit FileSelectionPage(QWizard* parent);
         bool isComplete() const override;
-        QString getFileName() const{
+        QString getFileName() const
+        {
             if (m_fileExists)
             {
                 return m_textEdit->text();
@@ -44,62 +55,76 @@ namespace ROS2
         QPushButton* m_button;
         QLineEdit* m_textEdit;
         void onLoadButtonPressed();
-        void onFileSelected(const QString &file);
-        void onTextChanged(const QString &text);
-        bool m_fileExists{false};
+        void onFileSelected(const QString& file);
+        void onTextChanged(const QString& text);
+        bool m_fileExists{ false };
     };
 
-    class CheckUrdfPage : public QWizardPage{
+    class CheckUrdfPage : public QWizardPage
+    {
         Q_OBJECT
     public:
         explicit CheckUrdfPage(QWizard* parent);
-        void ReportURDFResult(const QString & result, bool is_success);
+        void ReportURDFResult(const QString& result, bool is_success);
         bool isComplete() const override;
+
     private:
         QTextEdit* m_log;
         QString m_fileName;
         bool m_success;
     };
 
-    class CheckAssetPage : public QWizardPage{
+    class CheckAssetPage : public QWizardPage
+    {
         Q_OBJECT
     public:
         explicit CheckAssetPage(QWizard* parent);
-        void ReportURDFResult(const QString & result, bool is_success);
+        void ReportAsset(const AZStd::string& urdfPath, const AZStd::string& type, const AZ::Data::AssetId& assetId);
+        void ClearAssetsList();
+
         bool isComplete() const override;
+
     private:
         bool m_success;
         QTableWidget* m_table;
     };
 
-    class URDFPrefabMaker;
+    class PrefabMakerPage : public QWizardPage
+    {
+        Q_OBJECT
+    public:
+        explicit PrefabMakerPage(RobotImporterWidget* parent);
+        void setProposedPrefabName(const AZStd::string prefabName);
+        void reportProgress(const AZStd::string& progressForUser);
+        void setSuccess(bool success);
+        bool isComplete() const override;
+
+    private:
+        void onCreateButtonPressed();
+        bool m_success;
+        QLineEdit* m_prefabName;
+        QPushButton* m_createButton;
+        QTextEdit* m_log;
+        RobotImporterWidget* m_parentImporterWidget;
+    };
+
     //! Handles UI for the process of URDF importing
-    class RobotImporterWidget : public  QWizard
+    class RobotImporterWidget : public QWizard
     {
         Q_OBJECT
     public:
         explicit RobotImporterWidget(QWidget* parent = nullptr);
+        void CreatePrefab(AZStd::string prefabName);
 
     private:
-        //! Report an error to the user.
-        //! Populates the log, sets status information in the status label and shows an error popup with the message
-        //! @param errorMessage error message to display to the user
-        void ReportError(const AZStd::string& errorMessage);
-
-        //! Report an information to the user.
-        //! Populates the log and sets status information in the status label
-        //! @param infoMessage info message to display to the user
-        void ReportInfo(const AZStd::string& infoMessage);
-//        QLabel m_statusLabel;
-//        QTextEdit m_statusText;
-//        QPushButton m_selectFileButton;
-        QTimer m_importerUpdateTimer;
         FileSelectionPage* m_fileSelectPage;
         CheckUrdfPage* m_checkUrdfPage;
         CheckAssetPage* m_assetPage;
+        PrefabMakerPage* m_prefabMakerPage;
+        AZStd::string m_urdfPath;
         urdf::ModelInterfaceSharedPtr m_parsedUrdf;
-        RobotImporter m_robotImporter;
-
+        AZStd::unordered_map<AZStd::string, AZ::Data::AssetId> m_urdfpathToAssetId;
+        AZStd::unique_ptr<URDFPrefabMaker> m_prefabMaker;
         void ImporterTimerUpdate();
         void onCurrentIdChanged(int id);
     };

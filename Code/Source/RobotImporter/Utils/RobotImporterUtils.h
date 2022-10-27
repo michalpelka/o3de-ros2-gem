@@ -27,5 +27,11 @@ namespace ROS2
         /// Retrieve all joints in urdf file
         AZStd::unordered_map<AZStd::string, urdf::JointSharedPtr> getAllJoints(const std::vector<urdf::LinkSharedPtr>& links);
 
+        /// Retireve all meshes as URDF paths
+        /// @param visual - find for visual
+        /// @param colliders - find for colliders
+        /// @returns set of meshes
+        AZStd::unordered_set<AZStd::string> getMeshesFilenames(const urdf::LinkConstSharedPtr& root_link, bool visual, bool colliders);
+
     } // namespace Utils
 } // namespace ROS2

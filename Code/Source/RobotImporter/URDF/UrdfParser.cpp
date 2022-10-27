@@ -60,14 +60,16 @@ namespace ROS2
         return Parse(xmlStr.c_str());
     }
 
-    AZStd::string  UrdfParser::getUrdfParsingLog(){
-        return AZStd::string(UrdfParser::m_customConsoleHandler.console_ss.str().c_str(), UrdfParser::m_customConsoleHandler.console_ss.str().size());
+    AZStd::string UrdfParser::getUrdfParsingLog()
+    {
+        return AZStd::string(
+            UrdfParser::m_customConsoleHandler.console_ss.str().c_str(), UrdfParser::m_customConsoleHandler.console_ss.str().size());
     }
 
     void UrdfParser::customConsoleHandler::log(const std::string& text, console_bridge::LogLevel level, const char* filename, int line)
     {
         AZ_Printf("URDF paser", "%s", text.c_str());
-        console_ss  << text << "\n";
+        console_ss << text << "\n";
     }
 
     UrdfParser::customConsoleHandler UrdfParser::m_customConsoleHandler;

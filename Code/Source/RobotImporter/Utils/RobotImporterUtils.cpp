@@ -86,4 +86,54 @@ namespace ROS2
         return joints;
     }
 
+    AZStd::unordered_set<AZStd::string> Utils::getMeshesFilenames(const urdf::LinkConstSharedPtr& root_link, bool visual, bool colliders)
+    {
+        AZStd::unordered_set<AZStd::string> filenames;
+        const auto getFnFromGeometry = [](const urdf::GeometrySharedPtr& geometry)
+        {
+            if (geometry->type == urdf::Geometry::MESH)
+            {
+                auto pMesh = std::dynamic_pointer_cast<urdf::Mesh>(geometry);
+                if (!pMesh)
+                {
+                    return AZStd::string{};
+                }
+                return AZStd::string(pMesh->filename.c_str(), pMesh->filename.size());
+            }
+            return AZStd::string{};
+        };
+        std::function<void(const std::vector<urdf::LinkSharedPtr>&)> link_visitor =
+            [&](const std::vector<urdf::LinkSharedPtr>& child_links) -> void
+        {
+            for (auto child_link : child_links)
+            {
+                if (visual)
+                {
+                    for (auto& p : child_link->visual_array)
+                    {
+                        const auto fn = getFnFromGeometry(p->geometry);
+                        if (!fn.empty())
+                        {
+                            filenames.insert(fn);
+                        }
+                    }
+                }
+                if (colliders)
+                {
+                    for (auto& p : child_link->collision_array)
+                    {
+                        const auto fn = getFnFromGeometry(p->geometry);
+                        if (!fn.empty())
+                        {
+                            filenames.insert(fn);
+                        }
+                    }
+                }
+                link_visitor(child_link->child_links);
+            }
+        };
+        link_visitor(root_link->child_links);
+        return filenames;
+    }
+
 } // namespace ROS2
