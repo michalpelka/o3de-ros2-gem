@@ -17,11 +17,22 @@
 #include <AzFramework/Components/TransformComponent.h>
 #include <AzFramework/Scene/SceneSystemInterface.h>
 
+#include <Atom/RPI.Public/FeatureProcessorFactory.h>
+#include <Atom/RPI.Public/Pass/PassSystemInterface.h>
 #include <PostProcess/PostProcessFeatureProcessor.h>
+
+#include <Atom/RPI.Public/Pass/PassFactory.h>
 
 namespace ROS2
 {
-    CameraSensorDescription::CameraSensorDescription(const AZStd::string& cameraName, float verticalFov, int width, int height)
+    namespace Internal
+    {
+        const char* RosCameraColorPipeline = "PipelineRenderToTextureROSColor";
+        const char* RosCameraDepthPipeline = "PipelineRenderToTextureROSDepth";
+
+    } // namespace Internal
+    CameraSensorDescription::CameraSensorDescription(
+        const AZStd::string& cameraName, float verticalFov, int width, int height, bool isDepth)
         : m_verticalFieldOfViewDeg(verticalFov)
         , m_verticalFieldOfViewRad(AZ::DegToRad(m_verticalFieldOfViewDeg))
         , m_width(width)
@@ -30,6 +41,7 @@ namespace ROS2
         , m_aspectRatio(static_cast<float>(width) / static_cast<float>(height))
         , m_viewToClipMatrix(MakeViewToClipMatrix())
         , m_cameraIntrinsics(MakeCameraIntrinsics())
+        , m_depthCamera(isDepth)
     {
         validateParameters();
     }
@@ -73,6 +85,15 @@ namespace ROS2
     CameraSensor::CameraSensor(const CameraSensorDescription& cameraSensorDescription)
         : m_cameraSensorDescription(cameraSensorDescription)
     {
+        AZ::RPI::PassRequest myPassRequest;
+        myPassRequest.m_passName = ("MainPipelineRenderToTextureROSTest");
+        myPassRequest.m_templateName = ("PipelineRenderToTextureROSColor");
+        AZ::RPI::Ptr<AZ::RPI::Pass> myPass = AZ::RPI::PassSystemInterface::Get()->CreatePassFromRequest(&myPassRequest);
+
+        AZ_Assert(myPass.get(), "MainPipelineRenderToTextureROS pass creation failed");
+        AZ_Printf("CameraSensor", "MyPass %d", myPass.get());
+        myPass->DebugPrint();
+
         AZ_TracePrintf("CameraSensor", "Initializing pipeline for %s", cameraSensorDescription.m_cameraName.c_str());
 
         AZ::Name viewName = AZ::Name("MainCamera");
@@ -85,7 +106,10 @@ namespace ROS2
         AZ::RPI::RenderPipelineDescriptor pipelineDesc;
         pipelineDesc.m_mainViewTagName = "MainCamera";
         pipelineDesc.m_name = pipelineName;
-        pipelineDesc.m_rootPassTemplate = "MainPipelineRenderToTexture";
+
+        pipelineDesc.m_rootPassTemplate =
+            m_cameraSensorDescription.m_depthCamera ? Internal::RosCameraDepthPipeline : Internal::RosCameraColorPipeline;
+
         // TODO: expose sample count to user as it might substantially affect the performance
         pipelineDesc.m_renderSettings.m_multisampleState.m_samples = 4;
         m_pipeline = AZ::RPI::RenderPipeline::CreateRenderPipeline(pipelineDesc);

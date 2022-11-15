@@ -9,6 +9,7 @@
 
 #include "Clock/SimulationClock.h"
 #include "ROS2/ROS2Bus.h"
+#include <Atom/RPI.Public/Pass/PassSystemInterface.h>
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/std/smart_ptr/unique_ptr.h>
@@ -17,7 +18,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
-
 namespace ROS2
 {
     //! Central singleton-like System Component for ROS2 Gem.
@@ -67,5 +67,8 @@ namespace ROS2
         AZStd::unique_ptr<tf2_ros::TransformBroadcaster> m_dynamicTFBroadcaster;
         AZStd::unique_ptr<tf2_ros::StaticTransformBroadcaster> m_staticTFBroadcaster;
         SimulationClock m_simulationClock;
+        //! Used for loading the pass templates of the ROS2 gem.
+        void LoadPassTemplateMappings();
+        AZ::RPI::PassSystemInterface::OnReadyLoadTemplatesEvent::Handler m_loadTemplatesHandler;
     };
 } // namespace ROS2
