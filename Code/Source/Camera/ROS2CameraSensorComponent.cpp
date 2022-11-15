@@ -46,6 +46,16 @@ namespace ROS2
             AZStd::replace(cameraName.begin(), cameraName.end(), '/', '_');
             return cameraName;
         }
+        // maping from ATOM to ROS/OpenCV
+        AZStd::unordered_map<AZ::RHI::Format, const char*> FormatMappings{
+            { AZ::RHI::Format::R8G8B8A8_UNORM, sensor_msgs::image_encodings::RGBA8 },
+            { AZ::RHI::Format::R16G16B16A16_UNORM, sensor_msgs::image_encodings::RGBA16 },
+            { AZ::RHI::Format::R32G32B32A32_FLOAT, sensor_msgs::image_encodings::TYPE_32FC4 }, // Unsuported by RVIZ2
+            { AZ::RHI::Format::R8_UNORM, sensor_msgs::image_encodings::MONO8 },
+            { AZ::RHI::Format::R16_UNORM, sensor_msgs::image_encodings::MONO16 },
+            { AZ::RHI::Format::R32_FLOAT, sensor_msgs::image_encodings::TYPE_32FC1 },
+
+        };
     } // namespace Internal
 
     ROS2CameraSensorComponent::ROS2CameraSensorComponent()
@@ -63,10 +73,11 @@ namespace ROS2
         if (serialize)
         {
             serialize->Class<ROS2CameraSensorComponent, ROS2SensorComponent>()
-                ->Version(1)
+                ->Version(2)
                 ->Field("VerticalFieldOfViewDeg", &ROS2CameraSensorComponent::m_VerticalFieldOfViewDeg)
                 ->Field("Width", &ROS2CameraSensorComponent::m_width)
-                ->Field("Height", &ROS2CameraSensorComponent::m_height);
+                ->Field("Height", &ROS2CameraSensorComponent::m_height)
+                ->Field("Depth", &ROS2CameraSensorComponent::m_depthCamera);
 
             AZ::EditContext* ec = serialize->GetEditContext();
             if (ec)
@@ -81,7 +92,8 @@ namespace ROS2
                         "Vertical field of view",
                         "Camera's vertical (y axis) field of view in degrees.")
                     ->DataElement(AZ::Edit::UIHandlers::Default, &ROS2CameraSensorComponent::m_width, "Image width", "Image width")
-                    ->DataElement(AZ::Edit::UIHandlers::Default, &ROS2CameraSensorComponent::m_height, "Image height", "Image height");
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &ROS2CameraSensorComponent::m_height, "Image height", "Image height")
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &ROS2CameraSensorComponent::m_depthCamera, "Depth Camera", "Depth Camera");
             }
         }
     }
@@ -103,8 +115,8 @@ namespace ROS2
         m_cameraInfoPublisher =
             ros2Node->create_publisher<sensor_msgs::msg::CameraInfo>(cameraInfoFullTopic.data(), cameraInfoPublisherConfig.GetQoS());
 
-        m_cameraSensor.emplace(
-            CameraSensorDescription{ Internal::GetCameraNameFromFrame(GetEntity()), m_VerticalFieldOfViewDeg, m_width, m_height });
+        m_cameraSensor.emplace(CameraSensorDescription{
+            Internal::GetCameraNameFromFrame(GetEntity()), m_VerticalFieldOfViewDeg, m_width, m_height, m_depthCamera });
     }
 
     void ROS2CameraSensorComponent::Deactivate()
@@ -126,30 +138,40 @@ namespace ROS2
             [this](const AZ::RPI::AttachmentReadback::ReadbackResult& result)
             {
                 const AZ::RHI::ImageDescriptor& descriptor = result.m_imageDescriptor;
-                const auto* component = Utils::GetGameOrEditorComponent<ROS2FrameComponent>(GetEntity());
-                AZStd::string frameName = component->GetFrameID();
-                sensor_msgs::msg::Image message;
-                message.encoding = sensor_msgs::image_encodings::RGBA8;
+                const auto format = descriptor.m_format;
+                if (Internal::FormatMappings.contains(format))
+                {
+                    const auto* component = Utils::GetGameOrEditorComponent<ROS2FrameComponent>(GetEntity());
+                    AZStd::string frameName = component->GetFrameID();
+                    sensor_msgs::msg::Image message;
+                    message.encoding = Internal::FormatMappings.at(format);
 
-                message.width = descriptor.m_size.m_width;
-                message.height = descriptor.m_size.m_height;
-                message.step = message.width * sensor_msgs::image_encodings::bitDepth(message.encoding) / 8 *
-                    sensor_msgs::image_encodings::numChannels(message.encoding);
-                message.data = std::vector<uint8_t>(result.m_dataBuffer->data(), result.m_dataBuffer->data() + result.m_dataBuffer->size());
-                message.header.frame_id = frameName.c_str();
+                    message.width = descriptor.m_size.m_width;
+                    message.height = descriptor.m_size.m_height;
+                    message.step = message.width * sensor_msgs::image_encodings::bitDepth(message.encoding) / 8 *
+                        sensor_msgs::image_encodings::numChannels(message.encoding);
+                    message.data =
+                        std::vector<uint8_t>(result.m_dataBuffer->data(), result.m_dataBuffer->data() + result.m_dataBuffer->size());
+                    message.header.frame_id = frameName.c_str();
 
-                m_imagePublisher->publish(message);
+                    m_imagePublisher->publish(message);
 
-                sensor_msgs::msg::CameraInfo cameraInfo;
-                cameraInfo.header.frame_id = frameName.c_str();
-                cameraInfo.width = descriptor.m_size.m_width;
-                cameraInfo.height = descriptor.m_size.m_height;
-                cameraInfo.distortion_model = sensor_msgs::distortion_models::PLUMB_BOB;
-                cameraInfo.k = m_cameraSensor->GetCameraSensorDescription().m_cameraIntrinsics;
-                cameraInfo.p = { cameraInfo.k[0], cameraInfo.k[1], cameraInfo.k[2], 0, cameraInfo.k[3], cameraInfo.k[4], cameraInfo.k[5], 0,
-                                 cameraInfo.k[6], cameraInfo.k[7], cameraInfo.k[8], 0 };
+                    sensor_msgs::msg::CameraInfo cameraInfo;
+                    cameraInfo.header.frame_id = frameName.c_str();
+                    cameraInfo.width = descriptor.m_size.m_width;
+                    cameraInfo.height = descriptor.m_size.m_height;
+                    cameraInfo.distortion_model = sensor_msgs::distortion_models::PLUMB_BOB;
+                    cameraInfo.k = m_cameraSensor->GetCameraSensorDescription().m_cameraIntrinsics;
+                    cameraInfo.p = { cameraInfo.k[0], cameraInfo.k[1], cameraInfo.k[2], 0,
+                                     cameraInfo.k[3], cameraInfo.k[4], cameraInfo.k[5], 0,
+                                     cameraInfo.k[6], cameraInfo.k[7], cameraInfo.k[8], 0 };
 
-                m_cameraInfoPublisher->publish(cameraInfo);
+                    m_cameraInfoPublisher->publish(cameraInfo);
+                }
+                else
+                {
+                    AZ_Warning("ROS2CameraSensorComponent", false, "Atom pipeline returned image of unknown type %ul.", (uint32_t)format);
+                }
             });
     }
 } // namespace ROS2

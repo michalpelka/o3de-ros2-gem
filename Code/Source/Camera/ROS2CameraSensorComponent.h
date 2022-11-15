@@ -44,9 +44,9 @@ namespace ROS2
         float m_VerticalFieldOfViewDeg = 90.0f;
         int m_width = 640;
         int m_height = 480;
+        bool m_depthCamera = false;
 
         void FrequencyTick() override;
-
         std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> m_imagePublisher;
         std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::CameraInfo>> m_cameraInfoPublisher;
         std::optional<CameraSensor> m_cameraSensor;
