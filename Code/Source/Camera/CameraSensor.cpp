@@ -85,16 +85,16 @@ namespace ROS2
     CameraSensor::CameraSensor(const CameraSensorDescription& cameraSensorDescription)
         : m_cameraSensorDescription(cameraSensorDescription)
     {
-        AZ::RPI::PassRequest myPassRequest;
-        myPassRequest.m_passName = ("MainPipelineRenderToTextureROSTest");
-        myPassRequest.m_templateName = ("PipelineRenderToTextureROSColor");
-        AZ::RPI::Ptr<AZ::RPI::Pass> myPass = AZ::RPI::PassSystemInterface::Get()->CreatePassFromRequest(&myPassRequest);
-
-        AZ_Assert(myPass.get(), "MainPipelineRenderToTextureROS pass creation failed");
-        AZ_Printf("CameraSensor", "MyPass %d", myPass.get());
-        myPass->DebugPrint();
-
-        AZ_TracePrintf("CameraSensor", "Initializing pipeline for %s", cameraSensorDescription.m_cameraName.c_str());
+//        AZ::RPI::PassRequest myPassRequest;
+//        myPassRequest.m_passName = ("MainPipelineRenderToTextureROSTest");
+//        myPassRequest.m_templateName = ("PipelineRenderToTextureROSColor");
+//        AZ::RPI::Ptr<AZ::RPI::Pass> myPass = AZ::RPI::PassSystemInterface::Get()->CreatePassFromRequest(&myPassRequest);
+//
+//        AZ_Assert(myPass.get(), "MainPipelineRenderToTextureROS pass creation failed");
+//        AZ_Printf("CameraSensor", "MyPass %d", myPass.get());
+//        myPass->DebugPrint();
+//
+//        AZ_TracePrintf("CameraSensor", "Initializing pipeline for %s", cameraSensorDescription.m_cameraName.c_str());
 
         AZ::Name viewName = AZ::Name("MainCamera");
         m_view = AZ::RPI::View::CreateView(viewName, AZ::RPI::View::UsageCamera);
@@ -107,8 +107,8 @@ namespace ROS2
         pipelineDesc.m_mainViewTagName = "MainCamera";
         pipelineDesc.m_name = pipelineName;
 
-        pipelineDesc.m_rootPassTemplate =
-            m_cameraSensorDescription.m_depthCamera ? Internal::RosCameraDepthPipeline : Internal::RosCameraColorPipeline;
+        pipelineDesc.m_rootPassTemplate = "PipelineRenderToTextureROSRGBD";
+        //    m_cameraSensorDescription.m_depthCamera ? Internal::RosCameraDepthPipeline : Internal::RosCameraColorPipeline;
 
         // TODO: expose sample count to user as it might substantially affect the performance
         pipelineDesc.m_renderSettings.m_multisampleState.m_samples = 4;
@@ -122,8 +122,12 @@ namespace ROS2
 
         m_scene->AddRenderPipeline(m_pipeline);
 
-        m_passHierarchy.push_back(pipelineName);
-        m_passHierarchy.push_back("CopyToSwapChain");
+        m_passHierarchyColor.push_back(pipelineName);
+        m_passHierarchyColor.push_back("CopyToSwapChain");
+
+
+        m_passHierarchyDepth.push_back(pipelineName);
+        m_passHierarchyDepth.push_back("CopyToSwapChainDepth");
 
         m_pipeline->SetDefaultView(m_view);
         AZ::RPI::ViewPtr targetView = m_scene->GetDefaultRenderPipeline()->GetDefaultView();
@@ -144,7 +148,9 @@ namespace ROS2
             m_scene->RemoveRenderPipeline(m_pipeline->GetId());
             m_scene = nullptr;
         }
-        m_passHierarchy.clear();
+        m_passHierarchyColor.clear();
+        m_passHierarchyDepth.clear();
+
         m_pipeline.reset();
         m_view.reset();
     }
@@ -161,10 +167,17 @@ namespace ROS2
         AZ::Render::FrameCaptureRequestBus::BroadcastResult(
             captureId,
             &AZ::Render::FrameCaptureRequestBus::Events::CapturePassAttachmentWithCallback,
-            m_passHierarchy,
+            m_passHierarchyColor,
             AZStd::string("Output"),
             callback,
             AZ::RPI::PassAttachmentReadbackOption::Output);
+        AZ::Render::FrameCaptureRequestBus::BroadcastResult(
+                captureId,
+                &AZ::Render::FrameCaptureRequestBus::Events::CapturePassAttachmentWithCallback,
+                m_passHierarchyDepth,
+                AZStd::string("PipelineOutputDepth"),
+                callback,
+                AZ::RPI::PassAttachmentReadbackOption::Output);
     }
 
     const CameraSensorDescription& CameraSensor::GetCameraSensorDescription() const

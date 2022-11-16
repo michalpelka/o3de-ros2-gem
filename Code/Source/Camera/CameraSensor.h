@@ -70,7 +70,9 @@ namespace ROS2
 
     private:
         CameraSensorDescription m_cameraSensorDescription;
-        AZStd::vector<AZStd::string> m_passHierarchy;
+        AZStd::vector<AZStd::string> m_passHierarchyColor;
+        AZStd::vector<AZStd::string> m_passHierarchyDepth;
+
         AZ::RPI::RenderPipelinePtr m_pipeline;
         AZ::RPI::ViewPtr m_view;
         AZ::RPI::Scene* m_scene = nullptr;

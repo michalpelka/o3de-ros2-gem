@@ -1,0 +1,40 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "PassAsset",
+    "ClassData": {
+        "PassTemplate": {
+            "Name": "PipelineRenderToTextureROSRGBD",
+            "PassClass": "RenderToTexturePassRGBD",
+            "PassData": {
+                "$type": "RenderToTexturePassRGBDData",
+                "OutputWidth": 512,
+                "OutputHeight": 512,
+                "OutputFormatColor": "R8G8B8A8_UNORM",
+                "OutputFormatDepth": "R8G8B8A8_UNORM"
+            },
+            "PassRequests": [
+                {
+                    "Name": "Pipeline",
+                    "TemplateName": "PipelineROSRGBD",
+                    "Connections": [
+                        {
+                            "LocalSlot": "PipelineOutput",
+                            "AttachmentRef": {
+                                "Pass": "Parent",
+                                "Attachment": "OutputColor"
+                            }
+                        },
+                        {
+                            "LocalSlot": "PipelineOutputDepth",
+                            "AttachmentRef": {
+                                "Pass": "Parent",
+                                "Attachment": "OutputDepth"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
