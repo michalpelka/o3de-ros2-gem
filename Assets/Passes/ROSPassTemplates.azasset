@@ -13,12 +13,20 @@
                 "Path": "Passes/PipelineROSDepth.pass"
             },
             {
+                "Name": "PipelineROSRGBD",
+                "Path": "Passes/PipelineROSRGBD.pass"
+            },
+            {
                 "Name": "PipelineRenderToTextureROSColor",
                 "Path": "Passes/PipelineRenderToTextureROSColor.pass"
             },
             {
                 "Name": "PipelineRenderToTextureROSDepth",
                 "Path": "Passes/PipelineRenderToTextureROSDepth.pass"
+            },
+            {
+                "Name": "PipelineRenderToTextureROSRGBD",
+                "Path": "Passes/PipelineRenderToTextureROSRGBD.pass"
             }
         ]
     }
